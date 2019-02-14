@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import {OAuth2Client} from 'google-auth-library';
 import axios from 'axios';
 import querystring from 'querystring';
+import jsonwebtoken from 'jsonwebtoken';
 
  const client = new OAuth2Client(process.env.clientId);
 export default {
@@ -59,11 +60,12 @@ export default {
           )
         }
         if(strat==='google'){
+          //console.log(user.idToken)
              if(!user.idToken){
                 throw new Error('id-token is not given');
             }
             
-            async function verify() {
+          
                 const ticket = await client.verifyIdToken({
                     idToken: user.idToken,
                     audience: [process.env.clientId, process.env.clientId2, '407408718192.apps.googleusercontent.com'], // Specify the CLIENT_ID of the app that accesses the backend
@@ -72,33 +74,39 @@ export default {
                 })
               const payload = ticket.getPayload();
               const userid = payload['sub'];
-              return Promise.resolve(userid);
-            }
-            verify().
-            then(async (userid)=>{
-              let user= await User.findOne({userid:userid});
-              if(!user){
+              //console.log(userid)
+              
+    
+              let userG= await User.findOne({userid:userid});
+              if(!userG){
                  let url = `https://oauth2.googleapis.com/tokeninfo?id_token=${user.idToken}`;
                  let guser = await axios.get(url);
+                 //console.log(guser.data)
                  let newUser= await User.create({
-                   userid: guser.sub,
-                   email: guser.email,
-                   imageurl: guser.pictures
+                   name: guser.data.name,
+                   userid: guser.data.sub,
+                   email: guser.data.email,
+                   imageurl: guser.data.picture
                  })
-                 return jsonwebtoken.sign(
-            { _id: newUser._id, email: newUser.email, userid: newUser.userid },
-            process.env.secretOrKey,
-            { expiresIn: '1y' })
+                 return { token:jsonwebtoken.sign({
+                    _id: newUser._id,
+                     email: newUser.email,
+                    userid: newUser.userid },
+                  process.env.secretOrKey,
+                  { expiresIn: '1y' })}
               }else{
-                 return jsonwebtoken.sign(
-            { _id: user._id, email: user.email, userid: user.userid },
+                 return {
+                   token: jsonwebtoken.sign(
+            {
+              _id: userG._id,
+              email: userG.email,
+              userid: userG.userid
+            },
             process.env.secretOrKey,
-            { expiresIn: '1y' })
-              }
-            }).
-            catch(err=>{
-              throw new Error(err);
-            });
+            { expiresIn: '1y' })}
+              
+          }
+      
         }
       } 
   }

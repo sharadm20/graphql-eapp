@@ -9,17 +9,18 @@ ObjectID.prototype.valueOf = function() {
 
 const UserSchema = new Schema({
   name: {
-    type: String,
-    required: true
+    type: String
   },
   email: {
     type: String,
     unique: true,
+    sparse: true,
     required: true
   },
   userid: {
     type: String,
-    unique:true
+    unique:true,
+    sparse: true
   },
   password:{
     type: String
